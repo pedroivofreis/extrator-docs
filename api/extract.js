@@ -2,23 +2,46 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// PROMPTS MELHORADOS
+// --- PROMPTS (Apenas Texto agora, sem coordenadas) ---
 const PROMPTS = {
-  // RG: Adicionado orgao_emissor e texto_assinatura
-  rg: `Analise esta imagem de RG brasileiro. Extraia os dados e retorne APENAS um JSON puro (sem markdown) com as seguintes chaves em snake_case:
+  rg: `Analise esta imagem de RG. Extraia os dados e retorne APENAS um JSON puro (sem markdown) com as chaves em snake_case:
   - nome_completo
+  - nome_social (se houver, senão null)
   - rg_numero (apenas números)
-  - orgao_emissor (ex: SSP/SP, DETRAN/RJ)
+  - orgao_emissor (ex: SSP/SP)
   - cpf (apenas números, se houver)
-  - data_nascimento (formato DD/MM/AAAA)
+  - data_nascimento (DD/MM/AAAA)
+  - data_validade (DD/MM/AAAA, se houver)
   - nome_mae
-  - texto_assinatura (o que está escrito na assinatura do titular, se legível. Caso contrário, deixe vazio).`,
-  
-  cnh: `Analise esta CNH. Retorne APENAS um JSON puro com as chaves: nome_completo, registro_numero, cpf, data_validade, categoria_habilitacao.`,
-  
-  classe: `Analise este documento profissional (OAB, CRM, etc). Retorne APENAS um JSON puro com as chaves: nome_completo, tipo_documento (ex: Carteira da OAB), numero_inscricao, data_validade.`,
-  
-  endereco: `Analise este comprovante de residência. Retorne APENAS um JSON puro com as chaves: destinatario_nome, logradouro, numero, complemento, bairro, cidade, uf, cep.`
+  - nome_pai (se houver, senão null)
+  - naturalidade (cidade/UF)`,
+
+  cnh: `Analise esta CNH. Extraia os dados e retorne APENAS um JSON puro (sem markdown) com as chaves em snake_case:
+  - nome_completo
+  - cpf (apenas números)
+  - rg_numero
+  - orgao_emissor_rg
+  - registro_numero (em vermelho)
+  - categoria_habilitacao
+  - data_validade (DD/MM/AAAA)
+  - data_primeira_habilitacao (DD/MM/AAAA)
+  - data_nascimento (DD/MM/AAAA)
+  - nome_mae
+  - nome_pai (se houver)
+  - observacoes`,
+
+  classe: `Analise este documento de classe (OAB, CRM, etc). Extraia os dados e retorne APENAS um JSON puro (sem markdown) com as chaves em snake_case:
+  - nome_completo
+  - tipo_documento (ex: OAB, CRM)
+  - numero_inscricao
+  - seccional_ou_regiao
+  - cpf
+  - rg_numero
+  - data_validade (DD/MM/AAAA)
+  - data_emissao
+  - filiacao`,
+
+  endereco: `Analise comprovante de residência. Retorne APENAS um JSON puro com: destinatario_nome, logradouro, numero, complemento, bairro, cidade, uf, cep, data_emissao.`
 };
 
 export default async function handler(req, res) {
@@ -32,35 +55,50 @@ export default async function handler(req, res) {
 
   try {
     const { imageBase64, type } = req.body;
+
     if (!imageBase64) return res.status(400).json({ error: "Imagem ausente" });
-
-    const cleanBase64 = imageBase64.split(",")[1] || imageBase64;
-
-    // Usando o modelo 2.0 Flash Experimental (o mais poderoso atual)
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
     
+    // Limpeza do base64
+    const cleanBase64 = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
+    
+    // Inicializa Gemini
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const selectedPrompt = PROMPTS[type] || PROMPTS.rg;
+
+    // Chama a IA
     const result = await model.generateContent([
-      PROMPTS[type] || PROMPTS.rg,
+      selectedPrompt,
       { inlineData: { data: cleanBase64, mimeType: "image/jpeg" } },
     ]);
 
     const text = result.response.text();
-    // Limpeza robusta para garantir JSON
     const jsonString = text.replace(/```json/g, "").replace(/```/g, "").trim();
-    
-    // Tenta fazer o parse. Se o Gemini mandou algo que não é JSON, vai dar erro aqui.
+
     let data;
     try {
-        data = JSON.parse(jsonString);
+      data = JSON.parse(jsonString);
     } catch (e) {
-        console.error("Erro ao fazer parse do JSON do Gemini:", jsonString);
-        throw new Error("A IA não retornou um formato válido. Tente novamente.");
+      console.error("Erro Parse JSON:", jsonString);
+      throw new Error("Falha ao interpretar resposta da IA");
     }
+
+    // Retorna os dados + a imagem original para exibição
+    data.imagem_original = imageBase64.startsWith("data:") 
+      ? imageBase64 
+      : `data:image/jpeg;base64,${imageBase64}`;
 
     return res.status(200).json(data);
 
   } catch (error) {
-    console.error("Erro Geral:", error);
+    console.error("Erro API:", error);
     return res.status(500).json({ error: error.message || "Falha interna" });
   }
 }
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};

@@ -11,6 +11,8 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "lucide-vue-next": "^0.562.0",
+    "pdfjs-dist": "^5.4.530",
+    "sharp": "^0.34.5",
     "vue": "^3.5.24"
   },
   "devDependencies": {
