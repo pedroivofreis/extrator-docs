@@ -11,7 +11,7 @@ const props = defineProps({
 
 const emit = defineEmits(['trigger-upload', 'trigger-camera']);
 
-// CORREÇÃO 2: Sistema de cores simplificado e protegido
+// CORREÇÃO 2: Adicionei as cores que faltavam (red, yellow, emerald, gray)
 const colorClasses = {
   blue: 'bg-blue-50 text-blue-600 border-blue-100 hover:border-blue-300',
   green: 'bg-green-50 text-green-600 border-green-100 hover:border-green-300',
@@ -22,9 +22,15 @@ const colorClasses = {
   pink: 'bg-pink-50 text-pink-600 border-pink-100 hover:border-pink-300',
   cyan: 'bg-cyan-50 text-cyan-600 border-cyan-100 hover:border-cyan-300',
   slate: 'bg-slate-50 text-slate-600 border-slate-100 hover:border-slate-300',
+  
+  // --- NOVAS CORES ADICIONADAS PARA O RESTANTE DO APP ---
+  red: 'bg-red-50 text-red-600 border-red-100 hover:border-red-300',
+  yellow: 'bg-yellow-50 text-yellow-600 border-yellow-100 hover:border-yellow-300',
+  emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100 hover:border-emerald-300',
+  gray: 'bg-gray-50 text-gray-600 border-gray-100 hover:border-gray-300',
 };
 
-// Garante que se a cor não existir, usa 'blue' como padrão (evita tela branca)
+// Garante que se a cor não existir, usa 'blue' como padrão
 const currentClass = computed(() => {
   return colorClasses[props.color] || colorClasses.blue;
 });

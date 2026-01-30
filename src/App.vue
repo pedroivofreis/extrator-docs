@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { 
-  // Ícones Básicos e UI (Adicionei FileStack, ChevronDown, ChevronUp, X)
+  // Ícones Básicos e UI
   User, FileText, Briefcase, MapPin, CheckCircle, Download, Loader2, Sparkles, ArrowLeft, Image as ImageIcon,
   FileStack, ChevronDown, ChevronUp, X,
   // Ícones Formação
@@ -9,10 +9,16 @@ import {
   // Ícones Saúde
   Heart, Syringe, CreditCard,
   // Ícones Regularidade & PJ
-  ShieldCheck, FileCheck, Building2, FileType, Fingerprint
+  ShieldCheck, FileCheck, Building2, FileType, Fingerprint,
+  // --- NOVO: Ícone de Rosto ---
+  ScanFace
 } from 'lucide-vue-next';
+
 import DocCard from './components/DocCard.vue';
 import * as pdfjsLib from 'pdfjs-dist';
+
+// --- NOVO: Import do Modal de Biometria ---
+import FaceRegistrationModal from './components/FaceRegistrationModal.vue';
 
 // Configuração do Worker do PDF
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -24,6 +30,25 @@ const statusMessage = ref("");
 const selectedType = ref(null);
 const extractedData = ref(null); // Para modo único
 const previewImage = ref(null);
+
+// --- NOVO: Estado para controlar o Modal ---
+const showFaceModal = ref(false);
+
+// --- NOVO: Handler de Captura Facial ---
+const handleFaceCapture = (data) => {
+  // Cria um objeto de dados simulado para exibir no Step 2
+  extractedData.value = {
+    tipo_documento: "Biometria Facial",
+    status_captura: "Sucesso",
+    pontos_mapeados: data.biometrics ? `${data.biometrics.length} pontos` : "N/A",
+    data_hora: new Date().toLocaleString(),
+    imagem_original: data.photo // Isso faz a foto aparecer no preview
+  };
+
+  previewImage.value = data.photo;
+  step.value = 2; // Avança para a tela de conferência
+  showFaceModal.value = false; // Fecha o modal
+};
 
 // --- NOVOS ESTADOS PARA LOTE ---
 const isBatchMode = ref(false);
@@ -55,7 +80,6 @@ const parsedFields = computed(() => {
 });
 
 // --- HELPER SHARED: Processar Arquivo (Único ou Lote) ---
-// Extraí a lógica de API para cá para poder reutilizar no loop do lote
 const processFileAPI = async (file, type) => {
     let finalBase64 = "";
     if (file.type === 'application/pdf') {
@@ -86,7 +110,6 @@ const triggerAction = (type, action) => {
   action === 'upload' ? fileInputUpload.value.click() : fileInputCamera.value.click();
 };
 
-// Nova ação para Lote
 const triggerBatchUpload = () => {
   fileInputBatch.value.click();
 };
@@ -115,7 +138,6 @@ const readFileAsBase64 = (file) => {
 
 // --- HANDLERS ---
 
-// Handler Único (Mantido sua lógica, apenas usando o helper processFileAPI)
 const handleFileUpload = async (event) => {
   const file = event.target.files[0];
   if (!file) return;
@@ -124,7 +146,6 @@ const handleFileUpload = async (event) => {
     loading.value = true;
     statusMessage.value = file.type === 'application/pdf' ? "Processando PDF..." : "Lendo arquivo...";
     
-    // Preview rápido (opcional, mas mantido da sua versão)
     if (file.type !== 'application/pdf') {
         previewImage.value = await readFileAsBase64(file);
     }
@@ -133,7 +154,7 @@ const handleFileUpload = async (event) => {
     const data = await processFileAPI(file, selectedType.value);
     
     extractedData.value = data;
-    previewImage.value = data.imagem_original; // Garante o preview vindo da API
+    previewImage.value = data.imagem_original; 
     step.value = 2;
 
   } catch (error) {
@@ -145,7 +166,6 @@ const handleFileUpload = async (event) => {
   }
 };
 
-// Novo Handler para Lote
 const handleBatchUpload = async (event) => {
   const files = Array.from(event.target.files);
   if (files.length === 0) return;
@@ -154,7 +174,7 @@ const handleBatchUpload = async (event) => {
     loading.value = true;
     isBatchMode.value = true;
     batchResults.value = [];
-    step.value = 3; // Step 3 é a tela de lista
+    step.value = 3; 
     batchProgress.value = { current: 0, total: files.length };
 
     for (let i = 0; i < files.length; i++) {
@@ -163,14 +183,12 @@ const handleBatchUpload = async (event) => {
       statusMessage.value = `Processando ${i + 1} de ${files.length}...`;
 
       try {
-        // Usa 'auto' para a IA descobrir o tipo sozinha
         const data = await processFileAPI(file, 'auto');
         data._id = Date.now() + i; 
         data._expanded = false; 
         batchResults.value.push(data);
       } catch (err) {
         console.error(`Erro no arquivo ${i}:`, err);
-        // Opcional: Adicionar um card de erro na lista
       }
     }
 
@@ -188,9 +206,8 @@ const toggleBatchItem = (item) => {
 };
 
 const downloadJson = () => {
-  // Lógica inteligente: baixa o único ou o lote dependendo do modo
   const dataToDownload = isBatchMode.value ? batchResults.value : extractedData.value;
-  const name = isBatchMode.value ? 'lote_documentos' : selectedType.value;
+  const name = isBatchMode.value ? 'lote_documentos' : (selectedType.value || 'documento');
   
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToDownload, null, 2));
   const el = document.createElement('a');
@@ -252,6 +269,15 @@ const formatKey = (key) => key.replace(/_/g, ' ');
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <DocCard title="RG / Identidade" :icon="User" color="blue" @trigger-upload="triggerAction('rg', 'upload')" @trigger-camera="triggerAction('rg', 'camera')" />
             <DocCard title="CNH Digital" :icon="FileText" color="green" @trigger-upload="triggerAction('cnh', 'upload')" @trigger-camera="triggerAction('cnh', 'camera')" />
+            
+            <DocCard 
+              title="Biometria Facial" 
+              :icon="ScanFace" 
+              color="purple" 
+              @trigger-upload="showFaceModal = true" 
+              @trigger-camera="showFaceModal = true" 
+            />
+
             <DocCard title="Endereço" :icon="MapPin" color="orange" @trigger-upload="triggerAction('endereco', 'upload')" @trigger-camera="triggerAction('endereco', 'camera')" />
           </div>
         </div>
@@ -410,5 +436,12 @@ const formatKey = (key) => key.replace(/_/g, ' ');
       </div>
 
     </main>
+    
+    <FaceRegistrationModal 
+      v-if="showFaceModal" 
+      @close="showFaceModal = false" 
+      @capture="handleFaceCapture" 
+    />
+
   </div>
 </template>
