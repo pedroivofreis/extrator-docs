@@ -1,51 +1,59 @@
 <script setup>
-import { Upload, Camera, ChevronRight } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { ArrowRight } from 'lucide-vue-next';
 
-defineProps({
-  title: String,
-  icon: Object,
-  color: String, // 'blue', 'orange', 'purple', 'green'
+// CORREÇÃO 1: Aceitar Object OU Function para o ícone
+const props = defineProps({
+  title: { type: String, required: true },
+  icon: { type: [Object, Function], required: true }, 
+  color: { type: String, default: 'blue' }
 });
 
-defineEmits(['trigger-upload', 'trigger-camera']);
+const emit = defineEmits(['trigger-upload', 'trigger-camera']);
 
-// Cores baseadas na marca "Humana" e tons pastéis vibrantes
-const styles = {
-  blue:   { bg: 'bg-blue-50',   text: 'text-blue-600',   btn: 'hover:bg-blue-600' },
-  orange: { bg: 'bg-orange-50', text: 'text-orange-600', btn: 'hover:bg-orange-600' },
-  purple: { bg: 'bg-purple-50', text: 'text-purple-600', btn: 'hover:bg-purple-600' },
-  green:  { bg: 'bg-emerald-50', text: 'text-emerald-600', btn: 'hover:bg-emerald-600' },
+// CORREÇÃO 2: Sistema de cores simplificado e protegido
+const colorClasses = {
+  blue: 'bg-blue-50 text-blue-600 border-blue-100 hover:border-blue-300',
+  green: 'bg-green-50 text-green-600 border-green-100 hover:border-green-300',
+  purple: 'bg-purple-50 text-purple-600 border-purple-100 hover:border-purple-300',
+  orange: 'bg-orange-50 text-orange-600 border-orange-100 hover:border-orange-300',
+  teal: 'bg-teal-50 text-teal-600 border-teal-100 hover:border-teal-300',
+  indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:border-indigo-300',
+  pink: 'bg-pink-50 text-pink-600 border-pink-100 hover:border-pink-300',
+  cyan: 'bg-cyan-50 text-cyan-600 border-cyan-100 hover:border-cyan-300',
+  slate: 'bg-slate-50 text-slate-600 border-slate-100 hover:border-slate-300',
 };
+
+// Garante que se a cor não existir, usa 'blue' como padrão (evita tela branca)
+const currentClass = computed(() => {
+  return colorClasses[props.color] || colorClasses.blue;
+});
 </script>
 
 <template>
-  <div class="group flex flex-col sm:flex-row items-center justify-between p-4 rounded-2xl border border-gray-100 hover:border-gray-200 hover:shadow-lg transition-all duration-300 bg-white">
+  <div 
+    class="flex items-center p-4 rounded-xl border transition-all cursor-pointer group relative overflow-hidden"
+    :class="currentClass"
+    @click="$emit('trigger-upload')"
+  >
+    <div class="mr-4 p-3 rounded-full bg-white shadow-sm group-hover:scale-110 transition-transform">
+      <component :is="icon" size="24" stroke-width="2" />
+    </div>
     
-    <div class="flex items-center gap-4 mb-4 sm:mb-0 w-full sm:w-auto">
-      <div class="p-3 rounded-xl transition-colors" :class="styles[color].bg">
-        <component :is="icon" :size="24" :class="styles[color].text" stroke-width="2.5" />
-      </div>
-      <span class="font-bold text-gray-700 text-lg group-hover:text-gray-900 transition-colors">
-        {{ title }}
-      </span>
+    <div class="flex-1 z-10">
+      <h3 class="font-bold text-lg leading-tight">{{ title }}</h3>
+      <p class="text-xs opacity-70 font-medium mt-1">Clique para enviar ou tirar foto</p>
     </div>
 
-    <div class="flex gap-2 w-full sm:w-auto">
-      <button 
-        @click="$emit('trigger-upload')"
-        class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors active:scale-95"
-      >
-        <Upload :size="16" /> <span class="hidden sm:inline">Arquivo</span>
-      </button>
-
-      <button 
-        @click="$emit('trigger-camera')"
-        class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gray-900 transition-all active:scale-95 shadow-md"
-        :class="styles[color].btn"
-      >
-        <Camera :size="16" /> Foto
-      </button>
+    <div class="opacity-0 group-hover:opacity-100 transition-opacity absolute right-4 text-current">
+      <ArrowRight size="20" />
     </div>
 
+    <button 
+      @click.stop="$emit('trigger-camera')"
+      class="md:hidden absolute right-2 top-2 p-2 bg-white/50 rounded-full hover:bg-white transition-colors"
+    >
+      📷
+    </button>
   </div>
 </template>
