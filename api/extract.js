@@ -62,9 +62,9 @@ export default async function handler(req, res) {
     const cleanBase64 = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
     
     // Inicializa Gemini
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const selectedPrompt = PROMPTS[type] || PROMPTS.rg;
-
+Q
     // Chama a IA
     const result = await model.generateContent([
       selectedPrompt,
