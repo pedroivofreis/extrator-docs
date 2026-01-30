@@ -64,7 +64,7 @@ export default async function handler(req, res) {
     // Inicializa Gemini
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const selectedPrompt = PROMPTS[type] || PROMPTS.rg;
-Q
+
     // Chama a IA
     const result = await model.generateContent([
       selectedPrompt,
